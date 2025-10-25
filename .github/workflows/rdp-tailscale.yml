@@ -12,16 +12,19 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install Tailscale (PowerShell safe)
+            - name: Install Tailscale (auto-resolves latest version)
         shell: pwsh
         run: |
-          Write-Host "Downloading Tailscale MSI..."
-          $url = "https://pkgs.tailscale.com/stable/tailscale-setup-x64.msi"
+          Write-Host "Fetching latest Tailscale Windows installer URL..."
+          $release = Invoke-RestMethod -Uri "https://pkgs.tailscale.com/api/v1/download?os=windows&arch=amd64" -UseBasicParsing
+          $url = $release.url
+          Write-Host "Resolved to $url"
           $outfile = "$env:TEMP\tailscale.msi"
           Invoke-WebRequest -Uri $url -OutFile $outfile -UseBasicParsing
           Write-Host "Installing Tailscale silently..."
           Start-Process "msiexec.exe" -ArgumentList "/i `"$outfile`" /qn" -Wait
           Write-Host "Installation complete."
+
 
       - name: Add Tailscale to PATH
         shell: pwsh
