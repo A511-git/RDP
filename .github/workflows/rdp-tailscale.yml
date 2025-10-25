@@ -1,21 +1,21 @@
 name: RDP via Tailscale
 
 on:
-  workflow_dispatch:   # So you can start it manually
+  workflow_dispatch:
 
 jobs:
   run-rdp:
-    runs-on: windows-latest   # You can also use ubuntu-latest
-    timeout-minutes: 360      # Keeps session alive for 6 hours
+    runs-on: windows-latest
+    timeout-minutes: 360
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install Tailscale
+      - name: Install Tailscale (silent)
         run: |
-          powershell -Command "Invoke-WebRequest https://pkgs.tailscale.com/stable/tailscale-setup-latest.exe -OutFile tailscale-installer.exe"
-          powershell -Command "Start-Process tailscale-installer.exe -Wait"
+          curl -o tailscale.msi https://pkgs.tailscale.com/stable/tailscale-setup-latest.msi
+          msiexec /i tailscale.msi /qn
 
       - name: Start Tailscale
         run: |
@@ -34,4 +34,4 @@ jobs:
       - name: Keep Session Alive
         run: |
           echo "Session active. Leave this running to keep RDP open."
-          timeout /t 21600   # 6 hours
+          timeout /t 21600
