@@ -1,0 +1,37 @@
+name: RDP via Tailscale
+
+on:
+  workflow_dispatch:   # So you can start it manually
+
+jobs:
+  run-rdp:
+    runs-on: windows-latest   # You can also use ubuntu-latest
+    timeout-minutes: 360      # Keeps session alive for 6 hours
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Tailscale
+        run: |
+          powershell -Command "Invoke-WebRequest https://pkgs.tailscale.com/stable/tailscale-setup-latest.exe -OutFile tailscale-installer.exe"
+          powershell -Command "Start-Process tailscale-installer.exe -Wait"
+
+      - name: Start Tailscale
+        run: |
+          tailscale up --authkey ${{ secrets.TAILSCALE_AUTHKEY }} --hostname github-rdp --ssh
+
+      - name: Enable RDP
+        run: |
+          powershell -Command "Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -Name 'fDenyTSConnections' -Value 0"
+          powershell -Command "Enable-NetFirewallRule -DisplayGroup 'Remote Desktop'"
+
+      - name: Show Tailscale IP
+        run: |
+          tailscale ip -4
+          echo "✅ Connect to this IP via RDP in your Tailscale network."
+
+      - name: Keep Session Alive
+        run: |
+          echo "Session active. Leave this running to keep RDP open."
+          timeout /t 21600   # 6 hours
