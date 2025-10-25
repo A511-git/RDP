@@ -12,26 +12,37 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install Tailscale (silent)
+      - name: Install Tailscale (PowerShell safe)
+        shell: pwsh
         run: |
-          curl -o tailscale.msi https://pkgs.tailscale.com/stable/tailscale-setup-latest.msi
-          msiexec /i tailscale.msi /qn
+          Write-Host "Downloading Tailscale MSI..."
+          Invoke-WebRequest -Uri "https://pkgs.tailscale.com/stable/tailscale-setup-latest.msi" -OutFile "$env:TEMP\tailscale.msi"
+          Write-Host "Installing Tailscale silently..."
+          Start-Process "msiexec.exe" -ArgumentList "/i `"$env:TEMP\tailscale.msi`" /qn" -Wait
+          Write-Host "Installation complete."
+
+      - name: Add Tailscale to PATH
+        shell: pwsh
+        run: |
+          $env:Path += ";C:\Program Files\Tailscale"
+          Write-Host "PATH updated."
 
       - name: Start Tailscale
+        shell: pwsh
         run: |
-          tailscale up --authkey ${{ secrets.TAILSCALE_AUTHKEY }} --hostname github-rdp --ssh
+          & "C:\Program Files\Tailscale\tailscale.exe" up --authkey "${{ secrets.TAILSCALE_AUTHKEY }}" --hostname github-rdp --ssh
+          & "C:\Program Files\Tailscale\tailscale.exe" ip -4
 
       - name: Enable RDP
+        shell: pwsh
         run: |
-          powershell -Command "Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -Name 'fDenyTSConnections' -Value 0"
-          powershell -Command "Enable-NetFirewallRule -DisplayGroup 'Remote Desktop'"
+          Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -Name 'fDenyTSConnections' -Value 0
+          Enable-NetFirewallRule -DisplayGroup 'Remote Desktop'
 
-      - name: Show Tailscale IP
+      - name: Keep Session Alive (heartbeat)
+        shell: pwsh
         run: |
-          tailscale ip -4
-          echo "✅ Connect to this IP via RDP in your Tailscale network."
-
-      - name: Keep Session Alive
-        run: |
-          echo "Session active. Leave this running to keep RDP open."
-          timeout /t 21600
+          for ($i=0; $i -lt 21600; $i += 60) {
+            Write-Host "Session alive for $i seconds..."
+            Start-Sleep -Seconds 60
+          }
